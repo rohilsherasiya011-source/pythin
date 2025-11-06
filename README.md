@@ -1,118 +1,133 @@
-import pygame
-import random
-import sys
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🐍 Snake Game</title>
+<style>
+  body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: white;
+    font-family: Arial, sans-serif;
+  }
+  canvas {
+    background-color: #fff;
+    border: 2px solid black;
+  }
+  #score {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    font-size: 20px;
+    color: black;
+  }
+</style>
+</head>
+<body>
 
-# Initialize pygame
-pygame.init()
+<div id="score">Score: 0</div>
+<canvas id="gameCanvas" width="600" height="400"></canvas>
 
-# Screen settings
-WIDTH, HEIGHT = 600, 400
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("🐍 Snake Game")
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
 
-# Colors
-WHITE = (255, 255, 255)
-GREEN = (0, 200, 0)
-RED = (200, 0, 0)
-BLACK = (0, 0, 0)
+const WIDTH = canvas.width;
+const HEIGHT = canvas.height;
+const BLOCK_SIZE = 20;
 
-# Clock for controlling speed
-clock = pygame.time.Clock()
-SNAKE_BLOCK = 20
-SNAKE_SPEED = 12
+let snake = [{x: WIDTH/2, y: HEIGHT/2}];
+let dx = 0;
+let dy = 0;
+let food = getRandomFood();
+let score = 0;
+let gameOver = false;
 
-# Font for score and messages
-font = pygame.font.SysFont(None, 35)
+document.addEventListener('keydown', changeDirection);
 
-def draw_message(msg, color, x, y):
-    text = font.render(msg, True, color)
-    screen.blit(text, [x, y])
+function gameLoop() {
+    if (gameOver) return;
 
-def game_loop():
-    # Starting position
-    x = WIDTH // 2
-    y = HEIGHT // 2
-    dx = dy = 0
+    update();
+    draw();
+    setTimeout(gameLoop, 100); // snake speed
+}
 
-    snake = [(x, y)]
-    snake_length = 1
+function update() {
+    const head = {x: snake[snake.length-1].x + dx, y: snake[snake.length-1].y + dy};
 
-    # Food position
-    food_x = random.randrange(0, WIDTH - SNAKE_BLOCK, SNAKE_BLOCK)
-    food_y = random.randrange(0, HEIGHT - SNAKE_BLOCK, SNAKE_BLOCK)
+    // Wall collision
+    if (head.x < 0 || head.x >= WIDTH || head.y < 0 || head.y >= HEIGHT) {
+        gameOverScreen();
+        return;
+    }
 
-    running = True
-    game_over = False
+    // Self collision
+    for (let segment of snake) {
+        if (head.x === segment.x && head.y === segment.y) {
+            gameOverScreen();
+            return;
+        }
+    }
 
-    while running:
-        while game_over:
-            screen.fill(BLACK)
-            draw_message("Game Over! Press C to Play Again or Q to Quit", RED, 40, 150)
-            pygame.display.update()
+    snake.push(head);
 
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_q:
-                        pygame.quit()
-                        sys.exit()
-                    elif event.key == pygame.K_c:
-                        game_loop()  # Restart game safely
+    // Eat food
+    if (head.x === food.x && head.y === food.y) {
+        score++;
+        food = getRandomFood();
+    } else {
+        snake.shift(); // remove tail
+    }
 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_LEFT and dx == 0:
-                    dx, dy = -SNAKE_BLOCK, 0
-                elif event.key == pygame.K_RIGHT and dx == 0:
-                    dx, dy = SNAKE_BLOCK, 0
-                elif event.key == pygame.K_UP and dy == 0:
-                    dx, dy = 0, -SNAKE_BLOCK
-                elif event.key == pygame.K_DOWN and dy == 0:
-                    dx, dy = 0, SNAKE_BLOCK
+    document.getElementById('score').innerText = "Score: " + score;
+}
 
-        # Move the snake
-        x += dx
-        y += dy
+function draw() {
+    ctx.clearRect(0, 0, WIDTH, HEIGHT);
 
-        # Check wall collision
-        if x < 0 or x >= WIDTH or y < 0 or y >= HEIGHT:
-            game_over = True
+    // draw snake
+    ctx.fillStyle = "green";
+    for (let segment of snake) {
+        ctx.fillRect(segment.x, segment.y, BLOCK_SIZE, BLOCK_SIZE);
+    }
 
-        # Draw everything
-        screen.fill(WHITE)
-        pygame.draw.rect(screen, RED, (food_x, food_y, SNAKE_BLOCK, SNAKE_BLOCK))
+    // draw food
+    ctx.fillStyle = "red";
+    ctx.fillRect(food.x, food.y, BLOCK_SIZE, BLOCK_SIZE);
+}
 
-        # Update snake
-        snake.append((x, y))
-        if len(snake) > snake_length:
-            del snake[0]
+function changeDirection(event) {
+    const key = event.key;
+    if (key === "ArrowUp" && dy === 0) {
+        dx = 0; dy = -BLOCK_SIZE;
+    } else if (key === "ArrowDown" && dy === 0) {
+        dx = 0; dy = BLOCK_SIZE;
+    } else if (key === "ArrowLeft" && dx === 0) {
+        dx = -BLOCK_SIZE; dy = 0;
+    } else if (key === "ArrowRight" && dx === 0) {
+        dx = BLOCK_SIZE; dy = 0;
+    }
+}
 
-        # Check self collision
-        if len(snake) != len(set(snake)):
-            game_over = True
+function getRandomFood() {
+    const x = Math.floor(Math.random() * (WIDTH / BLOCK_SIZE)) * BLOCK_SIZE;
+    const y = Math.floor(Math.random() * (HEIGHT / BLOCK_SIZE)) * BLOCK_SIZE;
+    return {x, y};
+}
 
-        # Draw snake
-        for segment in snake:
-            pygame.draw.rect(screen, GREEN, (segment[0], segment[1], SNAKE_BLOCK, SNAKE_BLOCK))
+function gameOverScreen() {
+    gameOver = true;
+    ctx.fillStyle = "black";
+    ctx.font = "30px Arial";
+    ctx.fillText("Game Over! Press F5 to Restart", 100, HEIGHT/2);
+}
 
-        # Eating food
-        if x == food_x and y == food_y:
-            food_x = random.randrange(0, WIDTH - SNAKE_BLOCK, SNAKE_BLOCK)
-            food_y = random.randrange(0, HEIGHT - SNAKE_BLOCK, SNAKE_BLOCK)
-            snake_length += 1
+gameLoop();
+</script>
 
-        # Draw score
-        draw_message(f"Score: {snake_length - 1}", BLACK, 10, 10)
-
-        pygame.display.update()
-        clock.tick(SNAKE_SPEED)
-
-    pygame.quit()
-    sys.exit()
-
-if __name__ == "__main__":
-    game_loop()
+</body>
+</html>
